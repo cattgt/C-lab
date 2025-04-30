@@ -34,20 +34,25 @@ with st.form(key='appointment_form'):
 
 # Si se envía el formulario
 if submitted:
+    # Validación de campos
     if not nombre or not motivo:
         st.error("Por favor, completa todos los campos obligatorios: nombre y motivo.")
+    elif hora_fin <= hora_inicio:
+        st.error("La hora de fin debe ser posterior a la hora de inicio.")
     else:
         # Convertir datos a datetime con zona horaria
         tz = pytz.timezone('America/Santiago')
         start_datetime = tz.localize(dt.datetime.combine(fecha, hora_inicio))
         end_datetime = tz.localize(dt.datetime.combine(fecha, hora_fin))
 
+        # Verificar que la fecha y hora no estén en el pasado
         if start_datetime < dt.datetime.now(tz):
             st.warning("No puedes agendar en una hora pasada.")
         else:
             resumen = f"{nombre} - {motivo} | Equipos: {', '.join(equipos)}"
 
             try:
+                # Crear evento en Google Calendar
                 calendar.create_event(
                     summary=resumen,
                     start_time=start_datetime.isoformat(),
@@ -57,3 +62,4 @@ if submitted:
                 st.success(f"Reserva creada exitosamente para {nombre} el {fecha} de {hora_inicio} a {hora_fin}")
             except Exception as e:
                 st.error(f"Ocurrió un error al crear la reserva: {e}")
+
