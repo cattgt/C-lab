@@ -7,7 +7,7 @@ from calendar_clab import GoogleCalendarManager
 calendar = GoogleCalendarManager()
 
 # Mostrar logo (asegúrate de que el archivo esté en la misma carpeta)
-st.image("logo_1.png", width=200)
+st.image("logo_11.png", width=200)
 
 # Título de la aplicación
 st.title("Reserva de Horas C-LAB")
