@@ -1,11 +1,7 @@
-import os
-import json
 import datetime as dt
-import pytz  # Para manejar zonas horarias
+import pytz
 import streamlit as st
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -16,34 +12,14 @@ class GoogleCalendarManager:
         self.service = self._authenticate()
 
     def _authenticate(self):
-        creds = None
-
-        # Si el archivo token.json existe, usa esas credenciales
-        if os.path.exists("token.json"):
-            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                # Aquí se autentica usando el secreto desde Streamlit Secrets
-                client_info = json.loads(st.secrets["google"]["client_info"])
-                with open("client_secrets_temp.json", "w") as f:
-                    json.dump(client_info, f)
-
-                flow = InstalledAppFlow.from_client_secrets_file("client_secrets_temp.json", SCOPES)
-                creds = flow.run_local_server(port=0)
-
-            # Guardar las credenciales para futuras ejecuciones
-            with open("token.json", "w") as token:
-                token.write(creds.to_json())
-
-        # Devuelve el servicio de Google Calendar autenticado
+        # Autenticación usando cuenta de servicio desde Streamlit Secrets
+        creds = Credentials.from_service_account_info(
+            st.secrets["google"]["client_info"], scopes=SCOPES
+        )
         return build("calendar", "v3", credentials=creds)
 
     def list_upcoming_events(self, max_results=10):
         chile_tz = pytz.timezone('America/Santiago')
-
         now = dt.datetime.now(chile_tz).isoformat()
         end = (dt.datetime.now(chile_tz) + dt.timedelta(days=5)).replace(
             hour=23, minute=59, second=0, microsecond=0
@@ -59,27 +35,13 @@ class GoogleCalendarManager:
         ).execute()
 
         events = events_result.get('items', [])
-
-        if not events:
-            print('No upcoming events found.')
-        else:
-            for event in events:
-                start = event['start'].get('dateTime', event['start'].get('date'))
-                print(start, event.get('summary', 'Sin título'), event.get('id', 'Sin ID'))
-
         return events
 
     def create_event(self, summary, start_time, end_time, timezone, attendees=None):
         event = {
             'summary': summary,
-            'start': {
-                'dateTime': start_time,
-                'timeZone': timezone,
-            },
-            'end': {
-                'dateTime': end_time,
-                'timeZone': timezone,
-            }
+            'start': {'dateTime': start_time, 'timeZone': timezone},
+            'end': {'dateTime': end_time, 'timeZone': timezone}
         }
 
         if attendees:
@@ -96,10 +58,8 @@ class GoogleCalendarManager:
 
         if summary:
             event['summary'] = summary
-
         if start_time:
             event['start']['dateTime'] = start_time.strftime('%Y-%m-%dT%H:%M:%S')
-
         if end_time:
             event['end']['dateTime'] = end_time.strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -112,7 +72,9 @@ class GoogleCalendarManager:
         return True
 
 
-# Ejecutar la clase y ver eventos
+# Solo para pruebas locales (no se ejecuta en Streamlit Cloud)
 if __name__ == "__main__":
     calendar = GoogleCalendarManager()
-    calendar.list_upcoming_events()
+    events = calendar.list_upcoming_events()
+    for event in events:
+        print(event['summary'], event['start'])
