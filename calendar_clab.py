@@ -14,24 +14,24 @@ class GoogleCalendarManager:
     def __init__(self):
         self.service = self._authenticate()
 
-    def _authenticate(self):
-        creds = None
+    import json
+import streamlit as st
+from google_auth_oauthlib.flow import InstalledAppFlow
 
-        if os.path.exists("token.json"):
-            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file("client_secrets.json", SCOPES)
-                creds = flow.run_console()
+def _authenticate():
+    # Leer la info desde st.secrets
+    client_info = json.loads(st.secrets["google"]["client_info"])
+    
+    # Guardar temporalmente la info como archivo .json
+    with open("client_secrets_temp.json", "w") as f:
+        json.dump(client_info, f)
 
-            # Guardar credenciales para futuras ejecuciones
-            with open("token.json", "w") as token:
-                token.write(creds.to_json())
-
-        return build("calendar", "v3", credentials=creds)
+    # Autenticarse con ese archivo
+    flow = InstalledAppFlow.from_client_secrets_file("client_secrets_temp.json", SCOPES)
+    creds = flow.run_local_server(port=0)
+    return creds
 
     def list_upcoming_events(self, max_results=10):
         chile_tz = pytz.timezone('America/Santiago')
